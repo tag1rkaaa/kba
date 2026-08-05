@@ -8,7 +8,6 @@ from app.core.security import decode_token
 from app.core.database import AsyncSessionLocal
 from app.repositories.user_repository import UserRepository
 from app.models.models import User
-from functools import wraps
 
 security = HTTPBearer()
 

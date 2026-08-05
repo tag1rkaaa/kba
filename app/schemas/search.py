@@ -1,21 +1,20 @@
 from datetime import datetime
-from typing import Optional
 from pydantic import BaseModel
 
 
 class SearchHit(BaseModel):
-    id:           int
-    title:        str
-    slug:         str
-    excerpt:      str
-    score:        float
+    id: int
+    title: str
+    slug: str
+    excerpt: str
+    score: float
     matched_tags: list[str]
-    author_id:    int
-    created_at:   datetime
+    author_id: int
+    created_at: datetime
 
 
 class SearchResponse(BaseModel):
-    hits:        list[SearchHit]
+    hits: list[SearchHit]
     total_count: int
-    time_ms:     float
+    time_ms: float
     search_mode: str

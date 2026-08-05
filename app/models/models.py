@@ -18,7 +18,6 @@ from pgvector.sqlalchemy import Vector
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy import Index, Computed
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.sql import func
 
 

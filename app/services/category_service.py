@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 from fastapi import HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.category_repository import CategoryRepository
 from app.models.models import Category

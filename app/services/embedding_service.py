@@ -13,6 +13,7 @@ class EmbeddingService:
     def _load_model(self):
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+
             self._model = SentenceTransformer(settings.EMBEDDING_MODEL)
 
     def encode(self, text: str) -> list[float]:
