@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Optional
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.repositories.category_repository import CategoryRepository
+
 from app.models.models import Category
+from app.repositories.category_repository import CategoryRepository
 
 
 @dataclass
@@ -12,7 +13,7 @@ class CategoryNode:
     id: int
     name: str
     slug: str
-    parent_id: Optional[int]
+    parent_id: int | None
     sort_order: int
     children: list = field(default_factory=list)
 

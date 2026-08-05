@@ -1,8 +1,9 @@
 import time
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.search import SearchResponse, SearchHit
+from app.schemas.search import SearchHit, SearchResponse
 
 
 class SearchService:

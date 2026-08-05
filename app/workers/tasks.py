@@ -1,13 +1,14 @@
-import logging
-import json
 import asyncio
+import json
+import logging
+
 from sqlalchemy import select
-from app.workers.celery_app import celery_app
-from app.services.embeddings import generate_embedding
 
 # Правильные импорты для вашей структуры
 from app.core.database import AsyncSessionLocal
 from app.models.models import Article
+from app.services.embeddings import generate_embedding
+from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ async def _process_vector_async(article_id: int):
             return True
 
         except Exception as e:
-            logger.error(f"Ошибка при векторизации статьи {article_id}: {str(e)}")
+            logger.error(f"Ошибка при векторизации статьи {article_id}: {e!s}")
             await db.rollback()
             return False
 

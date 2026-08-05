@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.deps import get_current_user
 from app.models.models import User
-from app.schemas.file import UploadUrlRequest, UploadUrlResponse, AttachmentOut
+from app.schemas.file import AttachmentOut, UploadUrlRequest, UploadUrlResponse
 from app.services.storage_service import storage_service
 
 router = APIRouter()

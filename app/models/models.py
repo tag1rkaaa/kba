@@ -1,25 +1,28 @@
 from datetime import datetime
 from typing import Optional
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
-    String,
-    Text,
-    Integer,
+    JSON,
     Boolean,
+    Column,
+    Computed,
     DateTime,
     ForeignKey,
-    Enum as SAEnum,
-    JSON,
+    Index,
+    Integer,
+    String,
     Table,
-    Column,
+    Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
-
-from app.core.database import Base
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy import Index, Computed
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from app.core.database import Base
 
 article_tags = Table(
     "article_tags",
@@ -39,7 +42,7 @@ class User(Base):
         SAEnum("viewer", "editor", "moderator", "admin", name="user_role"), default="viewer"
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
-    space_id: Mapped[Optional[int]] = mapped_column(ForeignKey("spaces.id"), nullable=True)
+    space_id: Mapped[int | None] = mapped_column(ForeignKey("spaces.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     articles: Mapped[list["Article"]] = relationship("Article", back_populates="author")
@@ -60,8 +63,8 @@ class Category(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
-    space_id: Mapped[Optional[int]] = mapped_column(ForeignKey("spaces.id"), nullable=True)
-    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    space_id: Mapped[int | None] = mapped_column(ForeignKey("spaces.id"), nullable=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     children: Mapped[list["Category"]] = relationship(
@@ -80,9 +83,9 @@ class Article(Base):
     __tablename__ = "articles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, unique=True)
-    embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(384), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    number: Mapped[int | None] = mapped_column(Integer, nullable=True, unique=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     slug: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     content: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -91,8 +94,8 @@ class Article(Base):
         SAEnum("draft", "published", "archived", name="article_status"), default="draft"
     )
     version: Mapped[int] = mapped_column(Integer, default=1)
-    source: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -135,7 +138,7 @@ class Tag(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    space_id: Mapped[Optional[int]] = mapped_column(ForeignKey("spaces.id"), nullable=True)
+    space_id: Mapped[int | None] = mapped_column(ForeignKey("spaces.id"), nullable=True)
 
     articles: Mapped[list["Article"]] = relationship(
         "Article", secondary=article_tags, back_populates="tags", lazy="selectin"

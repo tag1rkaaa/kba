@@ -1,13 +1,13 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.user_repository import UserRepository
 from app.core.security import (
-    verify_password,
-    hash_password,
     create_access_token,
     create_refresh_token,
+    hash_password,
+    verify_password,
 )
+from app.repositories.user_repository import UserRepository
 from app.schemas.auth import TokenResponse
 
 
@@ -40,8 +40,9 @@ class AuthService:
         )
 
     async def refresh(self, refresh_token: str) -> TokenResponse:
-        from app.core.security import decode_token
         from jose import JWTError
+
+        from app.core.security import decode_token
 
         try:
             payload = decode_token(refresh_token)

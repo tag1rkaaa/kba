@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 
-from app.core.deps import get_db, get_current_user
-from app.models.models import User, Favorite, Article
+from app.core.deps import get_current_user, get_db
+from app.models.models import Article, Favorite, User
 from app.schemas.article import ArticleOut
 
 router = APIRouter()

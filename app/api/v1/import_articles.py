@@ -1,13 +1,13 @@
-import json
 import csv
 import io
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+import json
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, require_role, get_current_user
+from app.core.deps import get_current_user, get_db, require_role
 from app.models.models import Article, User
 from app.services.article_service import slugify
-
 
 router = APIRouter()
 
@@ -91,7 +91,7 @@ async def import_from_json(
             imported.append(title)
 
         except Exception as e:
-            errors.append(f"Строка {i + 1}: {str(e)}")
+            errors.append(f"Строка {i + 1}: {e!s}")
 
     await db.commit()
 
@@ -174,7 +174,7 @@ async def import_from_csv(
             imported.append(title)
 
         except Exception as e:
-            errors.append(f"Строка {i + 2}: {str(e)}")
+            errors.append(f"Строка {i + 2}: {e!s}")
 
     await db.commit()
 
@@ -191,7 +191,7 @@ async def get_sources(
     current_user: User = Depends(get_current_user),  # ← было require_role
 ):
     """Возвращает список уникальных источников."""
-    from sqlalchemy import select, distinct
+    from sqlalchemy import distinct, select
 
     result = await db.execute(
         select(distinct(Article.source)).where(Article.source.isnot(None)).order_by(Article.source)

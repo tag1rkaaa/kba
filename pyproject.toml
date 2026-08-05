@@ -24,10 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ml = [
-    "sentence-transformers>=2.7",
-    "torch",
-]
+ml = ["sentence-transformers>=2.7", "torch"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -52,3 +49,11 @@ testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.ruff.lint]
+ignore = [
+    "B008",   # Depends() в аргументах — стандарт FastAPI
+    "DTZ003", # datetime.utcnow() — заменим позже
+    "BLE001", # broad exception catch — в воркерах нужен
+]
+select = ["E", "F", "I", "UP", "RUF"]

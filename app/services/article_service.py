@@ -1,13 +1,14 @@
 import re
 from datetime import datetime
-from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 
+from fastapi import HTTPException, status
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.models import Article
 from app.repositories.article_repository import ArticleRepository
 from app.repositories.tag_repository import TagRepository
 from app.schemas.article import ArticleCreate, ArticleUpdate
-from app.models.models import Article
 
 
 def slugify(title: str) -> str:

@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, get_current_user, require_role
-from app.schemas.auth import UserOut, PasswordResetRequest
+from app.core.deps import get_current_user, get_db, require_role
 from app.models.models import (
-    User,
     ResetRequest,
+    User,
 )  # Убедитесь, что ResetRequest добавлен в models.py!
+from app.schemas.auth import PasswordResetRequest, UserOut
 
 router = APIRouter()
 

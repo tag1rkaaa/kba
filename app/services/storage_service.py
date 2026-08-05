@@ -1,7 +1,8 @@
-from minio import Minio
-from minio.error import S3Error
 import uuid
 from datetime import timedelta
+
+from minio import Minio
+from minio.error import S3Error
 
 from app.core.config import settings
 

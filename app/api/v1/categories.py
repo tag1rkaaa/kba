@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, get_current_user, require_role
-from app.schemas.category import CategoryCreate, CategoryOut, BreadcrumbItem
-from app.services.category_service import CategoryService
+from app.core.deps import get_current_user, get_db, require_role
 from app.models.models import User
+from app.schemas.category import BreadcrumbItem, CategoryCreate, CategoryOut
+from app.services.category_service import CategoryService
 
 router = APIRouter()
 

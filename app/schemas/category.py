@@ -1,10 +1,9 @@
-from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class CategoryCreate(BaseModel):
     name: str = Field(..., max_length=255)
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
     sort_order: int = 0
 
 
@@ -12,7 +11,7 @@ class CategoryOut(BaseModel):
     id: int
     name: str
     slug: str
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
     sort_order: int
     children: list["CategoryOut"] = []
 

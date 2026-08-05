@@ -1,18 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
 from app.api.v1 import (
     articles,
-    search,
     auth,
-    users,
     categories,
-    tags,
+    favorites,
     files,
     import_articles,
-    favorites,
+    search,
+    tags,
+    users,
 )
+from app.core.config import settings
 
 
 def create_app() -> FastAPI:

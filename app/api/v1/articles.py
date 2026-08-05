@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, get_current_user, require_role
-from app.schemas.article import ArticleCreate, ArticleUpdate, ArticleOut, ArticleDetail
-from app.services.article_service import ArticleService
+from app.core.deps import get_current_user, get_db, require_role
 from app.models.models import User
+from app.schemas.article import ArticleCreate, ArticleDetail, ArticleOut, ArticleUpdate
+from app.services.article_service import ArticleService
 from app.workers.tasks import process_article_vector
-from typing import Optional
-
 
 router = APIRouter()
 
@@ -16,7 +14,7 @@ router = APIRouter()
 async def list_articles(
     skip: int = 0,
     limit: int = 20,
-    source: Optional[str] = None,
+    source: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

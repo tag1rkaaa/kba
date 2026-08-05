@@ -1,13 +1,14 @@
-from typing import AsyncGenerator
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from jose import JWTError
+from collections.abc import AsyncGenerator
 
-from app.core.security import decode_token
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import AsyncSessionLocal
-from app.repositories.user_repository import UserRepository
+from app.core.security import decode_token
 from app.models.models import User
+from app.repositories.user_repository import UserRepository
 
 security = HTTPBearer()
 
