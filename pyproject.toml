@@ -53,7 +53,9 @@ packages = ["app"]
 [tool.ruff.lint]
 ignore = [
     "B008",   # Depends() в аргументах — стандарт FastAPI
-    "DTZ003", # datetime.utcnow() — заменим позже
-    "BLE001", # broad exception catch — в воркерах нужен
+    "DTZ003", # datetime.utcnow()
+    "BLE001", # broad exception catch
+    "E501",   # длина строки
+    "RUF002", # кириллица в docstring
 ]
 select = ["E", "F", "I", "UP", "RUF"]
