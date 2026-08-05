@@ -56,6 +56,8 @@ ignore = [
     "DTZ003", # datetime.utcnow()
     "BLE001", # broad exception catch
     "E501",   # длина строки
+    "RUF001", # кириллица в строках
     "RUF002", # кириллица в docstring
+    "RUF003", # кириллица в комментариях
 ]
 select = ["E", "F", "I", "UP", "RUF"]

@@ -33,7 +33,7 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     current_user: User = require_role("moderator", "admin"),
 ):
-    result = await db.execute(select(User).where(User.is_active == True))
+    result = await db.execute(select(User).where(User.is_active.is_(True)))
     return result.scalars().all()
 
 
