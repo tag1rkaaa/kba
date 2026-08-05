@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import timedelta
 
 from minio import Minio
@@ -15,7 +16,10 @@ class StorageService:
             secret_key=settings.MINIO_SECRET_KEY,
             secure=False,  # в dev без HTTPS
         )
-        self._ensure_bucket()
+        try:
+            self._ensure_bucket()
+        except Exception as e:
+            logging.warning(f"Не удалось подключиться к MinIO при запуске: {e}")
 
     def _ensure_bucket(self):
         """Создаёт bucket если не существует."""
@@ -23,14 +27,13 @@ class StorageService:
             if not self.client.bucket_exists(settings.MINIO_BUCKET):
                 self.client.make_bucket(settings.MINIO_BUCKET)
         except S3Error as e:
-            print(f"MinIO bucket error: {e}")
+            logging.error(f"MinIO bucket error: {e}")
 
     def get_upload_url(self, filename: str, content_type: str) -> dict:
         """
         Генерирует presigned URL для загрузки файла напрямую в MinIO.
         Клиент делает PUT запрос по этому URL — файл идёт мимо API сервера.
         """
-        # Генерируем уникальное имя чтобы избежать коллизий
         ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
         object_name = f"{uuid.uuid4()}.{ext}" if ext else str(uuid.uuid4())
 
@@ -59,7 +62,7 @@ class StorageService:
         try:
             self.client.remove_object(settings.MINIO_BUCKET, object_name)
         except S3Error as e:
-            print(f"MinIO delete error: {e}")
+            logging.error(f"MinIO delete error: {e}")
 
 
 # Синглтон — один клиент на всё приложение
