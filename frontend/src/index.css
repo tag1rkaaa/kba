@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+/* Заставляем Tailwind v4 работать с темной темой по классу */
+@custom-variant dark (&:is(.dark *));
+
+/* Глобальные цвета для всего сайта */
+@layer base {
+  html, body {
+    @apply bg-slate-50 text-slate-800 transition-colors duration-200;
+    min-height: 100vh;
+  }
+  
+  /* Когда тема темная - меняем фон везде */
+  .dark body {
+    @apply bg-slate-900 text-slate-200;
+    color-scheme: dark;
+  }
+}
