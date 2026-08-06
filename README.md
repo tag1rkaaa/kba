@@ -59,3 +59,98 @@ kba/
 ├── Dockerfile            # Docker-образ для бэкенда
 └── docker-compose.yml    # Конфигурация для запуска всех сервисов
 ```
+
+Проект состоит из двух основных частей: Frontend (React + TypeScript) и Backend (FastAPI + Python), а также использует фоновые задачи (Celery).
+
+Требования (Prerequisites)
+Убедитесь, что у вас установлены:
+
+Python 3.10+
+
+Node.js 18+ и npm/yarn
+
+PostgreSQL (база данных)
+
+Redis (брокер сообщений для Celery)
+
+⚙️ 1. Настройка Backend (FastAPI)
+Клонируйте репозиторий и перейдите в папку бэкенда:
+
+Bash
+git clone <url_вашего_репозитория>
+cd kba
+Создайте и активируйте виртуальное окружение:
+
+Windows:
+
+Bash
+python -m venv .venv
+.venv\Scripts\activate
+Linux/macOS:
+
+Bash
+python3 -m venv .venv
+source .venv/bin/activate
+Установите зависимости:
+
+Bash
+pip install -r requirements.txt
+Настройте переменные окружения:
+Создайте файл .env в корне проекта (рядом с app/) и добавьте необходимые настройки. Пример:  
+
+Фрагмент кода
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/kba_db
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=your-super-secret-key
+Примените миграции базы данных (если используется Alembic):
+
+Bash
+alembic upgrade head
+Запустите сервер:
+
+Bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+API будет доступно по адресу: http://localhost:8000
+Документация Swagger: http://localhost:8000/docs
+
+🔄 2. Запуск фоновых задач (Celery)
+Для обработки векторов статей (поиск, AI) используется Celery. Откройте новый терминал, активируйте виртуальное окружение (.venv) и запустите воркер:
+
+Windows:
+
+Bash
+celery -A app.workers.tasks worker --loglevel=info --pool=solo
+Linux/macOS:
+
+Bash
+celery -A app.workers.tasks worker --loglevel=info
+🎨 3. Настройка Frontend (React)
+Откройте новый терминал и перейдите в папку фронтенда:
+
+Bash
+cd frontend
+Установите зависимости:
+
+Bash
+npm install
+# или yarn install
+Настройте переменные окружения:
+Создайте файл .env в папке frontend и укажите путь к вашему локальному API:
+
+Фрагмент кода
+VITE_API_URL=http://localhost:8000/api/v1
+Запустите сервер для разработки:
+
+Bash
+npm run dev
+# или yarn dev
+Приложение будет доступно по адресу, указанному в терминале (обычно http://localhost:5173).
+
+🐳 Использование Docker (Опционально)
+(Если у тебя настроен docker-compose.yml, оставь этот блок. Если нет — можешь удалить)
+
+Для быстрого запуска всех сервисов (DB, Redis, Backend, Celery, Frontend) одной командой используйте Docker Compose:
+
+Bash
+docker-compose up --build -d
+После успешной сборки приложение будет полностью готово к работе!
