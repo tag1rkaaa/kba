@@ -51,7 +51,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center font-sans transition-colors duration-200">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-transparent dark:border-slate-700 w-full max-w-md transition-colors">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">База знаний</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">ЦУР Знание</h1>
         <p className="text-gray-500 dark:text-slate-400 mb-6 transition-colors">
           {isForgotMode ? 'Восстановление пароля' : 'Войдите в свой аккаунт'}
         </p>

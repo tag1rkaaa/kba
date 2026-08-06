@@ -34,7 +34,8 @@ export default function SearchBar() {
     timer.current = setTimeout(async () => {
       try {
         const data = await searchApi.search(value)
-        setSuggestions(data.hits.slice(0, 5).map((h: any) => ({ 
+        // Установили лимит до 8 результатов
+        setSuggestions(data.hits.slice(0, 8).map((h: any) => ({ 
           id: h.id, 
           title: h.title, 
           excerpt: h.excerpt 
@@ -79,7 +80,7 @@ export default function SearchBar() {
 
       {/* Выпадающий список */}
       {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-[80vh] overflow-y-auto">
           {suggestions.map(s => (
             <button
               key={s.id}
@@ -98,7 +99,7 @@ export default function SearchBar() {
               )}
             </button>
           ))}
-          <div className="bg-slate-50/50">
+          <div className="bg-slate-50/50 sticky bottom-0">
             <button
               onClick={handleSubmit as any}
               className="w-full text-left px-5 py-3 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50/80 transition-colors font-semibold"

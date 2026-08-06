@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+// Добавили useInfiniteQuery
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { articlesApi } from '../api/articles'
 import { authApi } from '../api/auth'
 import { sourcesApi } from '../api/sources'
@@ -9,17 +10,6 @@ import FavoritesPanel from '../components/FavoritesPanel'
 import logo from '../assets/logo.png' 
 import { useTheme } from '../providers/ThemeProvider'
 
-interface Article {
-  id: string | number;
-  number?: string | number;
-  title: string;
-  description?: string;
-  content_plain?: string;
-  updated_at: string;
-  source?: string;
-  status: string;
-  tags?: any[];
-}
 
 const SPECIFIC_COLORS: Record<string, string> = {
   'Здравоохранение': 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800',
@@ -53,7 +43,10 @@ function getCategoryColor(categoryName: string) {
 
 export default function ArticlesPage() {
   const navigate = useNavigate()
-  const [source, setSource] = useState<string>('')
+  const location = useLocation()
+  
+  // Состояние категории
+  const [source, setSource] = useState<string>(location.state?.restoreCategory || '')
   
   const { theme, setTheme } = useTheme()
 
@@ -68,9 +61,22 @@ export default function ArticlesPage() {
     enabled: !!me,
   })
 
-  const { data: articles, isLoading: isArticlesLoading } = useQuery<Article[]>({
-    queryKey: ['articles'],
-    queryFn: () => articlesApi.list(),
+  // ИСПОЛЬЗУЕМ useInfiniteQuery ДЛЯ ПОДГРУЗКИ
+  const { 
+    data, 
+    isLoading: isArticlesLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ['articles', source], // Теперь при смене категории запрос обновится сам!
+    queryFn: ({ pageParam }) => articlesApi.list({ page: pageParam as number, source }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      // Предполагаем, что сервер отдает максимум 20 (или 50) статей за раз.
+      // Если пришло меньше (или 0), значит это последняя страница, больше не грузим.
+      return lastPage.length > 0 ? allPages.length + 1 : undefined;
+    },
   })
 
   const isLoading = isMeLoading || isSourcesLoading || isArticlesLoading
@@ -80,13 +86,12 @@ export default function ArticlesPage() {
     navigate('/login')
   }
 
-  const displayedArticles = source 
-    ? articles?.filter(article => article.source === source) 
-    : articles;
-
   const filteredSources = sources?.filter(
     s => !s.toLowerCase().includes('минторг') && !s.toLowerCase().includes('правительство')
   )
+
+  // Объединяем все загруженные страницы в один плоский массив статей
+  const displayedArticles = data?.pages.flat() || [];
 
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center text-slate-400">
@@ -125,7 +130,7 @@ export default function ArticlesPage() {
               className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Переключить тему"
             >
-              {theme === 'dark' ? '🌞' : '🌙'}
+              {theme === 'dark' ? 'Светлая' : 'Тёмная'}
             </button>
 
             {me?.role !== 'viewer' && (
@@ -138,12 +143,12 @@ export default function ArticlesPage() {
             )}
             {(me?.role === 'admin' || me?.role === 'moderator') && (
               <Link to="/import" className="text-slate-500 hover:text-teal-600 text-sm font-medium transition-colors">
-                 Импорт
+                Импорт
               </Link>
             )}
             {me?.role === 'admin' && (
               <Link to="/admin" className="text-slate-500 hover:text-teal-600 text-sm font-medium transition-colors">
-                 Админ
+                Админ
               </Link>
             )}
             <button
@@ -158,12 +163,11 @@ export default function ArticlesPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
         
-        {/* Левая панель с отфильтрованными категориями — расширена до w-72 */}
         <div className="w-72 shrink-0 hidden md:block">
           {filteredSources && filteredSources.length > 0 && (
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 sticky top-24 transition-colors space-y-2">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3 px-2">
-                🗂 Категории
+                Категории
               </h3>
               <button
                 onClick={() => setSource('')}
@@ -179,8 +183,7 @@ export default function ArticlesPage() {
                 <button
                   key={s}
                   onClick={() => setSource(s)}
-                  // Здесь убран truncate и добавлены whitespace-normal, break-words и leading-snug
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-normal break-words leading-snug ${
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-normal wrap-break-word leading-snug ${
                     source === s 
                       ? 'bg-slate-800 text-white shadow-md dark:bg-slate-200 dark:text-slate-900' 
                       : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
@@ -195,9 +198,8 @@ export default function ArticlesPage() {
 
         <div className="flex-1 min-w-0">
           
-          {displayedArticles?.length === 0 ? (
+          {displayedArticles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 border-dashed transition-colors">
-              <div className="text-4xl mb-4">📭</div>
               <p className="text-lg text-slate-500 dark:text-slate-400 font-medium">В этом разделе пока нет статей</p>
               {me?.role !== 'viewer' && (
                 <Link to="/articles/new" className="text-teal-600 font-semibold hover:underline mt-2">
@@ -207,10 +209,11 @@ export default function ArticlesPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {displayedArticles?.map(article => (
+              {displayedArticles.map(article => (
                 <Link
                   key={article.id}
                   to={`/articles/${article.id}`}
+                  state={{ fromCategory: source }}
                   className="block bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-slate-100 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-500 group"
                 >
                   <div className="flex items-start justify-between">
@@ -250,7 +253,7 @@ export default function ArticlesPage() {
 
                       <div className="flex items-center gap-3 mt-4 text-xs font-medium text-slate-400 dark:text-slate-500">
                         <span className="flex items-center gap-1">
-                          🕒 {new Date(article.updated_at).toLocaleDateString('ru', {
+                          {new Date(article.updated_at).toLocaleDateString('ru', {
                             day: 'numeric',
                             month: 'long',
                             year: 'numeric'
@@ -275,6 +278,19 @@ export default function ArticlesPage() {
                   </div>
                 </Link>
               ))}
+
+              {/* КНОПКА ЗАГРУЗИТЬ ЕЩЕ */}
+              {hasNextPage && (
+                <div className="flex justify-center mt-8 pb-4">
+                  <button
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-teal-500 dark:hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 text-slate-600 dark:text-slate-300 px-6 py-3 rounded-xl font-semibold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isFetchingNextPage ? 'Загрузка...' : 'Загрузить еще ↓'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

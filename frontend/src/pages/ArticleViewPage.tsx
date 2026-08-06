@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -18,7 +18,10 @@ interface ArticleItem {
 export default function ArticleViewPage() {
   const { id }   = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const qc       = useQueryClient()
+
+  const fromCategory = location.state?.fromCategory
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => authApi.me() })
 
@@ -28,7 +31,6 @@ export default function ArticleViewPage() {
     enabled:  !!id,
   })
 
-  // Загружаем список всех статей для подбора похожих
   const { data: allArticles } = useQuery({
     queryKey: ['articles'],
     queryFn: () => articlesApi.list(),
@@ -78,6 +80,14 @@ export default function ArticleViewPage() {
     }
   }
 
+  const handleBack = () => {
+    if (location.state && location.state.fromCategory !== undefined) {
+      navigate('/', { state: { restoreCategory: location.state.fromCategory } })
+    } else {
+      navigate(-1)
+    }
+  }
+
   const editor = useEditor({
     extensions: [StarterKit],
     editable: false,
@@ -108,7 +118,10 @@ export default function ArticleViewPage() {
     <div className="min-h-screen font-sans transition-colors duration-200">
       <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 sticky top-0 z-10 transition-colors">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 text-sm transition-colors">
+          <button 
+            onClick={handleBack} 
+            className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 text-sm transition-colors"
+          >
             ← Назад
           </button>
           <div className="flex items-center gap-3">
@@ -117,7 +130,7 @@ export default function ArticleViewPage() {
                 to={`/articles/${id}/edit`}
                 className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-teal-700 transition"
               >
-                ✏️ Редактировать
+                Редактировать
               </Link>
             )}
             {canDelete && (
@@ -126,7 +139,7 @@ export default function ArticleViewPage() {
                 disabled={deleteMutation.isPending}
                 className="bg-red-500 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-red-600 transition disabled:opacity-50"
               >
-                🗑️ Удалить
+                Удалить
               </button>
             )}
           </div>
@@ -137,7 +150,7 @@ export default function ArticleViewPage() {
         <div className="flex-1 min-w-0 space-y-8">
           
           <div>
-            <Breadcrumbs />
+            <Breadcrumbs fromCategory={fromCategory} articleCategory={article.source} />
 
             <div className="flex items-center gap-3 mb-2 mt-4">
               {article.number && (
@@ -157,7 +170,7 @@ export default function ArticleViewPage() {
 
               {article.source && (
                 <span className="text-xs px-2 py-1 rounded-full bg-blue-50 dark:bg-indigo-900/30 text-teal-600 dark:text-teal-400 transition-colors">
-                  📁 {article.source}
+                  {article.source}
                 </span>
               )}
               <span className="text-xs text-gray-400 dark:text-slate-500 transition-colors">
@@ -182,12 +195,10 @@ export default function ArticleViewPage() {
             </div>
           </div>
 
-          {/* Секция: Похожие статьи */}
           <RelatedArticles currentArticle={article} articles={allArticles ?? []} />
 
         </div>
 
-        {/* Правая боковая панель расширена до w-72 */}
         <div className="w-72 shrink-0 hidden lg:block space-y-6">
           <FavoritesPanel 
             isFav={isFav} 
@@ -225,14 +236,14 @@ function RelatedArticles({ currentArticle, articles }: { currentArticle: any; ar
   return (
     <section className="mt-12 pt-6 border-t border-gray-200 dark:border-slate-800 transition-colors">
       <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 transition-colors">
-        🔗 Похожие статьи
+        Похожие статьи
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {related.map(art => (
           <Link
             key={art.id}
             to={`/articles/${art.id}`}
-            className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-teal-300 dark:hover:border-teal-500 transition-all flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-teal-300 dark:hover:border-teal-500 transition-all flex flex-col justify-between group h-full"
           >
             <div>
               {art.number && (
@@ -240,7 +251,7 @@ function RelatedArticles({ currentArticle, articles }: { currentArticle: any; ar
                   #{art.number}
                 </span>
               )}
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-slate-200 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors line-clamp-2">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-slate-200 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors whitespace-normal wrap-break-word leading-snug">
                 {art.title}
               </h3>
             </div>
@@ -263,7 +274,7 @@ function FavoritesPanel({ isFav, onToggle, isPending }: { isFav?: boolean; onTog
   })
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4 sticky top-24 transition-colors space-y-4">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4 transition-colors space-y-4">
       {onToggle !== undefined && (
         <button
           onClick={onToggle}
@@ -274,13 +285,13 @@ function FavoritesPanel({ isFav, onToggle, isPending }: { isFav?: boolean; onTog
               : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
           }`}
         >
-          {isFav ? '⭐ В избранном' : '☆ В избранное'}
+          {isFav ? 'В избранном' : 'В избранное'}
         </button>
       )}
 
       <div>
         <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3 flex items-center gap-2">
-          ⭐ Избранное
+          Избранное
           {favorites && favorites.length > 0 && (
             <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs px-1.5 py-0.5 rounded-full">
               {favorites.length}
@@ -289,7 +300,7 @@ function FavoritesPanel({ isFav, onToggle, isPending }: { isFav?: boolean; onTog
         </h2>
 
         {!favorites || favorites.length === 0 ? (
-          <p className="text-xs text-gray-400 dark:text-slate-500">Нажмите ☆ чтобы добавить статью.</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500">Нажмите на кнопку добавления, чтобы сохранить статью.</p>
         ) : (
           <div className="space-y-1">
             {favorites.map(article => (
@@ -327,7 +338,7 @@ function RecentlyViewedPanel() {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4 transition-colors">
       <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3 flex items-center gap-2">
-        🕒 Недавно просмотрено
+        Недавно просмотрено
       </h2>
       <div className="space-y-1">
         {history.map(article => (

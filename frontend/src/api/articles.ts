@@ -12,11 +12,14 @@ export interface Article {
   source?:     string
   created_at:  string
   updated_at:  string
+  // Добавляем недостающие поля, чтобы TS их видел:
+  description?: string
+  content_plain?: string
+  tags?: { id: number; name: string; slug: string }[]
 }
 
 export interface ArticleDetail extends Article {
   content: object
-  tags: { id: number; name: string; slug: string }[]
 }
 
 export interface ArticleCreate {
@@ -28,8 +31,18 @@ export interface ArticleCreate {
 }
 
 export const articlesApi = {
-  list: (skip = 0, limit = 20, source?: string) =>
-    api.get<Article[]>('/articles/', { params: { skip, limit, source } }).then(r => r.data),
+  list: (params?: { page?: number; source?: string }) => {
+    const limit = 20
+    const skip = params?.page ? (params.page - 1) * limit : 0
+    
+    const queryParams: Record<string, any> = { skip, limit }
+    
+    if (params?.source) {
+      queryParams.source = params.source
+    }
+
+    return api.get<Article[]>('/articles/', { params: queryParams }).then(r => r.data)
+  },
 
   get: (id: number) =>
     api.get<ArticleDetail>(`/articles/${id}`).then(r => r.data),
@@ -42,10 +55,4 @@ export const articlesApi = {
 
   delete: (id: number) =>
     api.delete(`/articles/${id}`),
-}
-
-export interface ArticleDetail extends Article {
-  content: object
-  description?: string
-  tags: { id: number; name: string; slug: string }[]
 }
