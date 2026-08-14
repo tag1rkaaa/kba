@@ -2,288 +2,381 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-
-// 1. ИМПОРТИРУЕМ ХЛЕБНЫЕ КРОШКИ
-import Breadcrumbs from '../components/Breadcrumbs'
-
-interface User {
-  id: number
-  email: string
-  role: string
-  is_active: boolean
-}
-
-// Интерфейс для заявки на сброс
-interface ResetRequest {
-  id: number
-  user_id: number
-  email: string
-  created_at: string
-}
-
-const ROLES = ['viewer', 'editor', 'moderator', 'admin']
+import { articlesApi } from '../api/articles'
 
 export default function AdminPage() {
   const qc = useQueryClient()
-
-  // Состояния для ручного сброса пароля (в списке всех пользователей)
-  const [resetId, setResetId] = useState<number | null>(null)
   
-  // Состояния для обработки заявок на сброс
-  const [requestResetId, setRequestResetId] = useState<number | null>(null)
-  const [newPassword, setNewPassword] = useState('')
+  const [activeTab, setActiveTab] = useState<'users' | 'requests' | 'feedback' | 'audit'>('users')
+  const [feedbackFilter, setFeedbackFilter] = useState<'new' | 'all'>('new')
 
-  // 1. Запросы данных
-  const { data: pending } = useQuery({
-    queryKey: ['users', 'pending'],
-    queryFn: () => api.get<User[]>('/users/pending').then(r => r.data),
-  })
-
-  const { data: allUsers } = useQuery({
+  const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get<User[]>('/users/').then(r => r.data),
+    queryFn: () => api.get('/users/').then(r => r.data),
+    enabled: activeTab === 'users',
   })
 
-  // Запрос списка заявок на сброс пароля
+  const { data: pendingUsers } = useQuery({
+    queryKey: ['pending-users'],
+    queryFn: () => api.get('/users/pending').then(r => r.data),
+    enabled: activeTab === 'requests',
+  })
+
   const { data: resetRequests } = useQuery({
-    queryKey: ['users', 'reset-requests'],
-    queryFn: () => api.get<ResetRequest[]>('/users/reset-requests').then(r => r.data),
+    queryKey: ['reset-requests'],
+    queryFn: () => api.get('/users/reset-requests').then(r => r.data),
+    enabled: activeTab === 'requests',
   })
 
-  // 2. Мутации модерации пользователей
-  const approve = useMutation({
+  const { data: auditLog } = useQuery({
+    queryKey: ['audit-log'],
+    queryFn: () => api.get('/users/audit-log').then(r => r.data),
+    enabled: activeTab === 'audit',
+  })
+
+  const { data: feedbacks } = useQuery({
+    queryKey: ['feedbacks', feedbackFilter],
+    queryFn: () => articlesApi.getFeedback(feedbackFilter),
+    enabled: activeTab === 'feedback',
+  })
+
+  const approveMutation = useMutation({
     mutationFn: (id: number) => api.post(`/users/${id}/approve`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      qc.invalidateQueries({ queryKey: ['pending-users'] })
+    },
   })
 
-  const reject = useMutation({
+  const rejectMutation = useMutation({
     mutationFn: (id: number) => api.post(`/users/${id}/reject`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pending-users'] }),
   })
 
-  const setRole = useMutation({
-    mutationFn: ({ id, role }: { id: number; role: string }) =>
+  const roleMutation = useMutation({
+    mutationFn: ({ id, role }: { id: number; role: string }) => 
       api.patch(`/users/${id}/role`, null, { params: { role } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
 
-  // 3. Мутация для сброса пароля напрямую (для списка всех пользователей)
-  const resetPassword = useMutation({
-    mutationFn: ({ id, password }: { id: number; password: string }) =>
-      api.post(`/users/${id}/reset-password`, { new_password: password }),
-    onSuccess: () => {
-      setResetId(null)
-      setNewPassword('')
-      alert('Пароль успешно обновлён')
-    },
+  const resolveFeedbackMutation = useMutation({
+    mutationFn: (id: number) => articlesApi.resolveFeedback(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['feedbacks'] }),
   })
 
-  // 4. Мутация для обработки заявки (меняет пароль и удаляет заявку)
-  const resolveResetRequest = useMutation({
-    mutationFn: ({ requestId, userId, password }: { requestId: number, userId: number, password: string }) =>
-      api.post(`/users/reset-requests/${requestId}/resolve`, { user_id: userId, new_password: password }),
-    onSuccess: () => {
-      setRequestResetId(null)
-      setNewPassword('')
-      qc.invalidateQueries({ queryKey: ['users', 'reset-requests'] })
-      alert('Пароль обновлен, заявка закрыта')
-    },
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/users/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
 
-  // 5. Мутация для отклонения заявки на сброс
-  const dismissResetRequest = useMutation({
-    mutationFn: (requestId: number) => api.delete(`/users/reset-requests/${requestId}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users', 'reset-requests'] }) },
-  })
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Дата неизвестна';
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? 'Дата неизвестна' : date.toLocaleDateString('ru');
+  }
+
+  if (usersLoading) return (
+    <div className="min-h-screen flex items-center justify-center text-slate-500 dark:text-slate-400">
+      Загрузка панели администратора...
+    </div>
+  )
 
   return (
-    <div className="min-h-screen font-sans">
-      <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 transition-colors">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">⚙️ Администрирование</h1>
-          <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200">← К статьям</Link>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans transition-colors duration-200">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Панель управления</h1>
+            <Link to="/" className="text-teal-600 hover:text-teal-700 dark:text-teal-400 font-medium md:hidden">
+              На главную
+            </Link>
+          </div>
+          
+          <nav className="flex space-x-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl overflow-x-auto">
+            {[
+              { id: 'users', label: 'Пользователи' },
+              { id: 'requests', label: 'Заявки' },
+              { id: 'feedback', label: 'Жалобы' },
+              { id: 'audit', label: 'Логи' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          
+          <Link to="/" className="text-teal-600 hover:text-teal-700 dark:text-teal-400 font-medium hidden md:block">
+            Вернуться на главную
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-
-        {/* 2. ВСТАВЛЯЕМ КОМПОНЕНТ ХЛЕБНЫХ КРОШЕК */}
-        <Breadcrumbs />
-
-        {/* НОВЫЙ БЛОК: Заявки на сброс пароля */}
-        {resetRequests && resetRequests.length > 0 && (
-          <section>
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4 flex items-center">
-              Заявки на сброс пароля
-              <span className="ml-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs px-2 py-0.5 rounded-full">
-                {resetRequests.length}
-              </span>
-            </h2>
-            <div className="space-y-2">
-              {resetRequests.map(req => (
-                <div key={req.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-orange-100 dark:border-orange-900/30 flex flex-col transition-colors">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-800 dark:text-slate-200 font-medium">
-                      {req.email} <span className="text-gray-400 dark:text-slate-500 text-sm font-normal ml-2">просит сбросить пароль</span>
-                    </span>
-                    
-                    <div className="flex gap-2">
-                      {requestResetId !== req.id && (
-                        <button
-                          onClick={() => setRequestResetId(req.id)}
-                          className="text-teal-600 dark:text-teal-400 hover:bg-blue-50 dark:hover:bg-teal-900/30 px-3 py-1.5 rounded-lg text-sm transition"
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        
+        {activeTab === 'users' && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Активные пользователи</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-100 dark:border-slate-700">
+                  <tr>
+                    <th className="px-6 py-3 text-slate-500 dark:text-slate-400 font-medium">Email</th>
+                    <th className="px-6 py-3 text-slate-500 dark:text-slate-400 font-medium">Роль</th>
+                    <th className="px-6 py-3 text-slate-500 dark:text-slate-400 font-medium">Действия</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {users?.map((u: any) => (
+                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">{u.email}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          u.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                          u.role === 'editor' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                          u.role === 'moderator' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                          'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 flex items-center gap-3">
+                        <select
+                          value={u.role}
+                          onChange={(e) => roleMutation.mutate({ id: u.id, role: e.target.value })}
+                          className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-teal-500"
                         >
-                          Задать новый пароль
+                          <option value="viewer">Читатель</option>
+                          <option value="editor">Редактор</option>
+                          <option value="moderator">Модератор</option>
+                          <option value="admin">Админ</option>
+                        </select>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Вы уверены, что хотите закрыть доступ пользователю ${u.email}?`)) {
+                              deleteUserMutation.mutate(u.id)
+                            }
+                          }}
+                          className="text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:text-rose-400 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 px-3 py-1.5 rounded-lg transition-colors text-xs font-semibold"
+                        >
+                          Удалить
                         </button>
-                      )}
-                      <button
-                        onClick={() => dismissResetRequest.mutate(req.id)}
-                        className="text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg text-sm transition"
-                      >
-                        Отклонить
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Форма генерации пароля по заявке */}
-                  {requestResetId === req.id && (
-                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-slate-700">
-                      <input
-                        type="text"
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        placeholder="Введите новый пароль"
-                        className="border border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm flex-1"
-                      />
-                      <button
-                        onClick={() => resolveResetRequest.mutate({ 
-                          requestId: req.id, 
-                          userId: req.user_id, 
-                          password: newPassword 
-                        })}
-                        disabled={!newPassword}
-                        className="bg-orange-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:opacity-50 hover:bg-orange-600 transition"
-                      >
-                        Сохранить и закрыть заявку
-                      </button>
-                      <button
-                        onClick={() => {
-                          setRequestResetId(null)
-                          setNewPassword('')
-                        }}
-                        className="text-gray-500 dark:text-slate-400 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        Отмена
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
 
-        {/* Ожидают подтверждения */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4">
-            Ожидают подтверждения
-            {pending?.length ? <span className="ml-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs px-2 py-0.5 rounded-full">{pending.length}</span> : null}
-          </h2>
-          {!pending?.length ? (
-            <p className="text-gray-400 dark:text-slate-500 text-sm">Нет заявок на регистрации</p>
-          ) : (
-            <div className="space-y-2">
-              {pending.map(user => (
-                <div key={user.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-100 dark:border-slate-700 flex items-center justify-between transition-colors">
-                  <span className="text-gray-800 dark:text-slate-200">{user.email}</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => approve.mutate(user.id)}
-                      className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-600 transition"
-                    >
-                      Одобрить
-                    </button>
-                    <button
-                      onClick={() => reject.mutate(user.id)}
-                      className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-red-600 transition"
-                    >
-                      Отклонить
-                    </button>
-                  </div>
+        {activeTab === 'requests' && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-8">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Ожидают подтверждения</h2>
+              {(!pendingUsers || pendingUsers.length === 0) ? (
+                <p className="text-slate-500">Нет новых заявок.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {pendingUsers.map((u: any) => (
+                    <div key={u.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{u.email}</p>
+                        <p className="text-sm text-slate-500">Регистрация: {formatDate(u.created_at)}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => approveMutation.mutate(u.id)}
+                          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                        >
+                          Одобрить
+                        </button>
+                        <button 
+                          onClick={() => rejectMutation.mutate(u.id)}
+                          className="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        >
+                          Отклонить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </section>
 
-        {/* Все пользователи */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4">Все пользователи</h2>
-          <div className="space-y-2">
-            {allUsers?.filter(u => u.is_active).map(user => (
-              <div key={user.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-100 dark:border-slate-700 flex flex-col transition-colors">
-                
-                {/* Основная информация и выбор роли */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="text-gray-800 dark:text-slate-200">{user.email}</span>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Заявки на сброс пароля</h2>
+              {(!resetRequests || resetRequests.length === 0) ? (
+                <p className="text-slate-500">Нет заявок на сброс.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {resetRequests.map((req: any) => (
+                    <div key={req.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-amber-200 dark:border-amber-900/50 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{req.email}</p>
+                        <p className="text-sm text-slate-500">Запрос от: {formatDate(req.created_at)}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            const newPwd = prompt('Введите новый временный пароль для пользователя:')
+                            if (newPwd) {
+                              api.post(`/users/reset-requests/${req.id}/resolve`, { user_id: req.user_id, new_password: newPwd })
+                                .then(() => qc.invalidateQueries({ queryKey: ['reset-requests'] }))
+                            }
+                          }}
+                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                        >
+                          Сбросить пароль
+                        </button>
+                        <button 
+                          onClick={() => {
+                            api.delete(`/users/reset-requests/${req.id}`)
+                              .then(() => qc.invalidateQueries({ queryKey: ['reset-requests'] }))
+                          }}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        >
+                          Отклонить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'feedback' && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Сообщения об ошибках</h2>
+              
+              <select 
+                value={feedbackFilter} 
+                onChange={(e) => setFeedbackFilter(e.target.value as 'new' | 'all')}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-teal-500 text-slate-700 dark:text-slate-300"
+              >
+                <option value="new">Только новые</option>
+                <option value="all">Все (Архив)</option>
+              </select>
+            </div>
+
+            {(!feedbacks || feedbacks.length === 0) ? (
+              <div className="text-slate-400 dark:text-slate-500 text-sm py-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                {feedbackFilter === 'new' ? 'Новых жалоб нет.' : 'Архив пуст.'}
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {feedbacks.map((f: any) => (
+                  <div 
+                    key={f.id} 
+                    className={`bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border flex flex-col md:flex-row gap-4 justify-between transition-colors ${
+                      f.status === 'new' 
+                        ? 'border-rose-200 dark:border-rose-900/50' 
+                        : 'border-emerald-200 dark:border-emerald-900/50 opacity-75'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2 mb-2">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          f.status === 'new' 
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' 
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        }`}>
+                          {f.status === 'new' ? 'Нужно исправить' : 'Исправлено'}
+                        </span>
+                        <Link 
+                          to={`/articles/${f.article_id}`} 
+                          className="font-semibold text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400 transition-colors truncate"
+                        >
+                          {f.article_title}
+                        </Link>
+                      </div>
+                      
+                      <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700 mt-2 whitespace-pre-wrap">
+                        {f.message}
+                      </p>
+                      
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 font-medium">
+                        Отправил(а): {f.user_email} • {new Date(f.created_at).toLocaleString('ru', {
+                          day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
                     
-                    {/* Кнопка сброса пароля */}
-                    {resetId !== user.id && (
-                      <button
-                        onClick={() => {
-                          setResetId(user.id)
-                          setNewPassword('') 
-                        }}
-                        className="text-xs text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 ml-3 transition-colors"
-                      >
-                        🔑 Сбросить пароль
-                      </button>
+                    {f.status === 'new' && (
+                      <div className="shrink-0 flex items-start md:items-center">
+                        <button
+                          onClick={() => resolveFeedbackMutation.mutate(f.id)}
+                          disabled={resolveFeedbackMutation.isPending}
+                          className="bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/50 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                        >
+                          Отметить как решённое
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  <select
-                    value={user.role}
-                    onChange={e => setRole.mutate({ id: user.id, role: e.target.value })}
-                    className="text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
-                  >
-                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-
-                {/* Форма ручного сброса пароля */}
-                {resetId === user.id && (
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-slate-700">
-                    <input
-                      type="text"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      placeholder="Новый пароль"
-                      className="border border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-sm flex-1 outline-none focus:border-teal-500 transition-colors"
-                    />
-                    <button
-                      onClick={() => resetPassword.mutate({ id: user.id, password: newPassword })}
-                      disabled={!newPassword}
-                      className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-sm disabled:opacity-50 hover:bg-teal-700 transition-colors"
-                    >
-                      Сохранить
-                    </button>
-                    <button
-                      onClick={() => {
-                        setResetId(null)
-                        setNewPassword('')
-                      }}
-                      className="text-gray-400 dark:text-slate-400 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      Отмена
-                    </button>
-                  </div>
-                )}
-
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'audit' && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
+              История изменений
+            </h2>
+            <div className="space-y-2">
+              {auditLog?.map((entry: any) => (
+                <div 
+                  key={entry.id} 
+                  className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm transition-colors gap-3 sm:gap-0"
+                >
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      entry.action === 'create' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                      entry.action === 'update' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                    }`}>
+                      {entry.action === 'create' ? 'Создал' :
+                      entry.action === 'update' ? 'Изменил' : 'Архивировал'}
+                    </span>
+                    
+                    <span className="text-sm text-slate-700 dark:text-slate-200 font-medium ml-1">
+                      {entry.user_email}
+                    </span>
+                    
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      статью #{entry.entity_id}
+                      {entry.diff?.title && <span className="italic"> «{entry.diff.title}»</span>}
+                    </span>
+                  </div>
+                  
+                  <span className="text-xs text-slate-400 dark:text-slate-500 font-medium shrink-0">
+                    {new Date(entry.created_at).toLocaleString('ru', {
+                      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+              ))}
+              
+              {(!auditLog || auditLog.length === 0) && (
+                <div className="text-slate-400 dark:text-slate-500 text-sm py-8 text-center border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-xl transition-colors">
+                  Действий пока нет
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
       </main>
     </div>

@@ -7,7 +7,7 @@ import { authApi } from '../api/auth'
 import { sourcesApi } from '../api/sources'
 import SearchBar from '../components/SearchBar'
 import FavoritesPanel from '../components/FavoritesPanel'
-import logo from '../assets/logo.png' 
+import logo from '../assets/logo2.svg' 
 import { useTheme } from '../providers/ThemeProvider'
 
 

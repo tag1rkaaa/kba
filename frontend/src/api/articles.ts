@@ -55,4 +55,20 @@ export const articlesApi = {
 
   delete: (id: number) =>
     api.delete(`/articles/${id}`),
+
+  sendFeedback: (articleId: number, message: string) =>
+    api.post(`/articles/${articleId}/feedback`, { message }).then(r => r.data),
+
+  getFeedback: (status: string = 'new') => 
+    api.get('/articles/feedback/list', { params: { status } }).then(r => r.data),
+    
+  resolveFeedback: (id: number) => 
+    api.patch(`/articles/feedback/${id}/resolve`).then(r => r.data),
+
+  getRevisions: (id: number) => 
+    api.get(`/articles/${id}/revisions`).then(r => r.data),
+
+  restoreRevision: (articleId: number, revisionId: number) => 
+    api.post(`/articles/${articleId}/restore/${revisionId}`).then(r => r.data),
 }
+

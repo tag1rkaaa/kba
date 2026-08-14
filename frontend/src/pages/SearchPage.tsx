@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { searchApi } from '../api/search'
 import SearchBar from '../components/SearchBar'
 import Breadcrumbs from '../components/Breadcrumbs'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo2.svg'
 import { useTheme } from '../providers/ThemeProvider' // <-- Импортируем хук темы
 
 export default function SearchPage() {
