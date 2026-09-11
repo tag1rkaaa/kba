@@ -50,8 +50,6 @@ class SearchService:
         limit: int,
         offset: int,
     ) -> list[SearchHit]:
-        ts_query_str = " & ".join([f"{word}:*" for word in q.split()])
-
         sql = """
             SELECT
                 a.id,
@@ -59,24 +57,24 @@ class SearchService:
                 a.slug,
                 a.author_id,
                 a.created_at,
-                ts_rank_cd(a.search_vector, to_tsquery('russian', :ts_q)) AS score,
+                ts_rank_cd(a.search_vector, websearch_to_tsquery('russian', :q)) AS score,
                 ts_headline(
                     'russian',
                     COALESCE(a.description, '') || ' ... ' || COALESCE(a.content_plain, ''),
-                    to_tsquery('russian', :ts_q),
+                    websearch_to_tsquery('russian', :q),
                     'StartSel=<b>, StopSel=</b>, MaxWords=30, MinWords=10, ShortWord=3, MaxFragments=2, FragmentDelimiter=" ... "'
                 ) AS excerpt
             FROM articles a
             WHERE (
-                a.search_vector @@ to_tsquery('russian', :ts_q)
-                OR to_tsvector('russian', COALESCE(a.description, '')) @@ to_tsquery('russian', :ts_q)
+                a.search_vector @@ websearch_to_tsquery('russian', :q)
+                OR to_tsvector('russian', COALESCE(a.description, '')) @@ websearch_to_tsquery('russian', :q)
                 OR CAST(a.number AS TEXT) = :q_exact
             )
               AND a.status = 'published'
         """
 
         params: dict = {
-            "ts_q": ts_query_str,
+            "q": q,
             "q_exact": q.replace("#", "").strip().lstrip("0") or q.strip(),
             "limit": limit,
             "offset": offset,
@@ -162,7 +160,9 @@ class SearchService:
                 id=row.id,
                 title=row.title,
                 slug=row.slug,
-                excerpt=row.excerpt[:200] + "..." if len(row.excerpt) > 200 else row.excerpt,
+                excerpt=row.excerpt[:200] + "..."
+                if len(row.excerpt) > 200
+                else row.excerpt,
                 score=float(row.score),
                 matched_tags=[],
                 author_id=row.author_id,
@@ -172,7 +172,11 @@ class SearchService:
         ]
 
     async def _ilike_search(
-        self, q: str, limit: int | None = 20, offset: int | None = 0, category_id: int | None = None
+        self,
+        q: str,
+        limit: int | None = 20,
+        offset: int | None = 0,
+        category_id: int | None = None,
     ):
         """Поиск через ILIKE с поддержкой номера статьи."""
         sql = """
@@ -218,7 +222,9 @@ class SearchService:
                 author_id=row.author_id,
                 created_at=row.created_at,
                 score=row.score,
-                excerpt=row.excerpt[:200] + "..." if len(row.excerpt) > 200 else row.excerpt,
+                excerpt=row.excerpt[:200] + "..."
+                if len(row.excerpt) > 200
+                else row.excerpt,
                 matched_tags=[],
             )
             for row in rows

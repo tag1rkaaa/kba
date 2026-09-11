@@ -31,7 +31,7 @@ export interface ArticleCreate {
 }
 
 export const articlesApi = {
-  list: (params?: { page?: number; source?: string }) => {
+  list: (params?: { page?: number; source?: string }): Promise<Article[]> => {
     const limit = 20
     const skip = params?.page ? (params.page - 1) * limit : 0
     
@@ -44,31 +44,32 @@ export const articlesApi = {
     return api.get<Article[]>('/articles/', { params: queryParams }).then(r => r.data)
   },
 
-  get: (id: number) =>
+  get: (id: number): Promise<ArticleDetail> =>
     api.get<ArticleDetail>(`/articles/${id}`).then(r => r.data),
 
-  create: (data: ArticleCreate) =>
+  create: (data: ArticleCreate): Promise<Article> =>
     api.post<Article>('/articles/', data).then(r => r.data),
 
-  update: (id: number, data: Partial<ArticleCreate>) =>
+  update: (id: number, data: Partial<ArticleCreate>): Promise<Article> =>
     api.patch<Article>(`/articles/${id}`, data).then(r => r.data),
 
-  delete: (id: number) =>
-    api.delete(`/articles/${id}`),
+  delete: (id: number): Promise<any> =>
+    api.delete(`/articles/${id}`).then(r => r.data),
 
-  sendFeedback: (articleId: number, message: string) =>
+  // Явно указываем Promise<any>, чтобы React Query был счастлив
+  sendFeedback: (articleId: number, message: string): Promise<any> =>
     api.post(`/articles/${articleId}/feedback`, { message }).then(r => r.data),
 
-  getFeedback: (status: string = 'new') => 
+  getFeedback: (status: string = 'new'): Promise<any> => 
     api.get('/articles/feedback/list', { params: { status } }).then(r => r.data),
     
-  resolveFeedback: (id: number) => 
+  resolveFeedback: (id: number): Promise<any> => 
     api.patch(`/articles/feedback/${id}/resolve`).then(r => r.data),
 
-  getRevisions: (id: number) => 
+  getRevisions: (id: number): Promise<any[]> => 
     api.get(`/articles/${id}/revisions`).then(r => r.data),
 
-  restoreRevision: (articleId: number, revisionId: number) => 
+  restoreRevision: (articleId: number, revisionId: number): Promise<any> => 
     api.post(`/articles/${articleId}/restore/${revisionId}`).then(r => r.data),
 }
 

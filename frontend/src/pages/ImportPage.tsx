@@ -163,7 +163,7 @@ export default function ImportPage() {
 
           {selectedCategory && (
             <p className="text-sm text-green-600 dark:text-emerald-400 mt-2 transition-colors">
-              ✅ Категория выбрана: {flatCategories.find(c => c.id === selectedCategory)?.name}
+              Категория выбрана: {flatCategories.find(c => c.id === selectedCategory)?.name}
             </p>
           )}
         </div>
@@ -196,10 +196,10 @@ export default function ImportPage() {
         {result && (
           <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 transition-colors">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4 transition-colors">Результат</h2>
-            <p className="text-green-600 dark:text-emerald-400 font-medium mb-2 transition-colors">✅ Импортировано: {result.imported}</p>
+            <p className="text-green-600 dark:text-emerald-400 font-medium mb-2 transition-colors">Импортировано: {result.imported}</p>
             {result.errors.length > 0 && (
               <div className="mt-2">
-                <p className="text-red-500 dark:text-red-400 font-medium mb-1 transition-colors">❌ Ошибки:</p>
+                <p className="text-red-500 dark:text-red-400 font-medium mb-1 transition-colors">Ошибки:</p>
                 {result.errors.map((e: string, i: number) => (
                   <p key={i} className="text-sm text-red-400 dark:text-red-300 transition-colors">{e}</p>
                 ))}

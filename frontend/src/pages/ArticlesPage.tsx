@@ -1,15 +1,15 @@
 import { useState } from 'react'
-// Добавили useInfiniteQuery
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
+// Убрали useInfiniteQuery отсюда, так как он теперь живет в нашем кастомном хуке
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { articlesApi } from '../api/articles'
 import { authApi } from '../api/auth'
 import { sourcesApi } from '../api/sources'
 import SearchBar from '../components/SearchBar'
 import FavoritesPanel from '../components/FavoritesPanel'
 import logo from '../assets/logo2.svg' 
 import { useTheme } from '../providers/ThemeProvider'
-
+// 1. ИМПОРТИРУЕМ НАШ ХУК
+import { useArticles } from '../hooks/useArticles'
 
 const SPECIFIC_COLORS: Record<string, string> = {
   'Здравоохранение': 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800',
@@ -61,23 +61,14 @@ export default function ArticlesPage() {
     enabled: !!me,
   })
 
-  // ИСПОЛЬЗУЕМ useInfiniteQuery ДЛЯ ПОДГРУЗКИ
+  // 2. ИСПОЛЬЗУЕМ НАШ НОВЫЙ ХУК — ВЕСЬ СЛОЖНЫЙ КОД ТЕПЕРЬ СПРЯТАН!
   const { 
     data, 
     isLoading: isArticlesLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage
-  } = useInfiniteQuery({
-    queryKey: ['articles', source], // Теперь при смене категории запрос обновится сам!
-    queryFn: ({ pageParam }) => articlesApi.list({ page: pageParam as number, source }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      // Предполагаем, что сервер отдает максимум 20 (или 50) статей за раз.
-      // Если пришло меньше (или 0), значит это последняя страница, больше не грузим.
-      return lastPage.length > 0 ? allPages.length + 1 : undefined;
-    },
-  })
+  } = useArticles({ source, limit: 20 })
 
   const isLoading = isMeLoading || isSourcesLoading || isArticlesLoading
 
@@ -161,9 +152,11 @@ export default function ArticlesPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
+      {/* ЗДЕСЬ МЫ РАСШИРИЛИ ГЛАВНЫЙ КОНТЕЙНЕР с max-w-7xl до max-w-[1600px] */}
+      <main className="max-w-[1600px] mx-auto px-6 py-8 flex gap-6">
         
-        <div className="w-72 shrink-0 hidden md:block">
+        {/* ЗДЕСЬ МЫ СУЗИЛИ ЛЕВОЕ МЕНЮ с w-72 до w-64 */}
+        <div className="w-64 shrink-0 hidden md:block">
           {filteredSources && filteredSources.length > 0 && (
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 sticky top-24 transition-colors space-y-2">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3 px-2">
@@ -295,7 +288,8 @@ export default function ArticlesPage() {
           )}
         </div>
 
-        <div className="w-72 shrink-0 hidden lg:block">
+        {/* ЗДЕСЬ МЫ СУЗИЛИ ПРАВУЮ ПАНЕЛЬ с w-72 до w-64 */}
+        <div className="w-64 shrink-0 hidden lg:block">
           <FavoritesPanel />
         </div>
 

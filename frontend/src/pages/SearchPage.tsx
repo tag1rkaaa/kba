@@ -47,7 +47,7 @@ export default function SearchPage() {
               className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Переключить тему"
             >
-              {theme === 'dark' ? '🌞' : '🌙'}
+              {theme === 'dark' ? 'Светлая' : 'Тёмная'}
             </button>
           </div>
         </div>

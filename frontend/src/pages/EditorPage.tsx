@@ -216,7 +216,7 @@ export default function EditorPage() {
 
           {/* Категория */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4 transition-colors">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3 transition-colors">🗂 Категория</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3 transition-colors">Категория</h3>
             <select
               value={categoryId}
               onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : '')}
@@ -266,7 +266,7 @@ export default function EditorPage() {
 
           {/* Теги */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4 transition-colors">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3 transition-colors">🏷 Теги</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3 transition-colors">Теги</h3>
 
             {/* Выбранные теги */}
             {tags.length > 0 && (

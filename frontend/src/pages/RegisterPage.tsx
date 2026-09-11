@@ -22,7 +22,6 @@ export default function RegisterPage() {
   if (done) return (
     <div className="min-h-screen flex items-center justify-center font-sans transition-colors duration-200">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-transparent dark:border-slate-700 w-full max-w-md text-center transition-colors">
-        <div className="text-4xl mb-4">✅</div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Заявка отправлена</h2>
         <p className="text-gray-500 dark:text-slate-400 mb-6 transition-colors">
           Ваш аккаунт ожидает подтверждения администратора.

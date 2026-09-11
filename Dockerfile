@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 # Зависимости Python
 COPY pyproject.toml .
+RUN pip install --no-cache-dir pandas openpyxl
 RUN pip install --no-cache-dir -e ".[dev]"
 
 # Код приложения

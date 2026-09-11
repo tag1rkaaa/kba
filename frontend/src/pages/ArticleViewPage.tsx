@@ -6,8 +6,11 @@ import StarterKit from '@tiptap/starter-kit'
 import { articlesApi } from '../api/articles'
 import { authApi } from '../api/auth'
 import { favoritesApi } from '../api/favorites'
-
+import { useTableOfContents } from '../hooks/useTableOfContents'
+import TableOfContents from '../components/TableOfContents'
 import Breadcrumbs from '../components/Breadcrumbs'
+// Импортируем компонент поиска
+import SearchBar from '../components/SearchBar'
 
 interface ArticleItem {
   id: number | string
@@ -46,17 +49,13 @@ export default function ArticleViewPage() {
   const canDelete = me?.role && ['moderator', 'admin'].includes(me.role)
   const isFav     = favStatus?.is_favorite ?? false
 
-  // СОСТОЯНИЯ ДЛЯ ОКНА ОБРАТНОЙ СВЯЗИ
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState('')
   const [isFeedbackSuccess, setIsFeedbackSuccess] = useState(false)
 
-  // СОСТОЯНИЕ ДЛЯ ОКНА ИСТОРИИ
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
-  // МУТАЦИЯ ДЛЯ ОТПРАВКИ ОБРАТНОЙ СВЯЗИ
   const feedbackMutation = useMutation({
-    // @ts-ignore
     mutationFn: () => articlesApi.sendFeedback(Number(id), feedbackMessage),
     onSuccess: () => {
       setIsFeedbackSuccess(true)
@@ -64,23 +63,20 @@ export default function ArticleViewPage() {
       setTimeout(() => {
         setIsFeedbackOpen(false)
         setIsFeedbackSuccess(false)
-      }, 3000) // Закроется само через 3 секунды
+      }, 3000) 
     },
   })
 
-  // ЗАПРОС ИСТОРИИ ВЕРСИЙ
   const { data: revisions, isLoading: revisionsLoading } = useQuery({
     queryKey: ['revisions', id],
     queryFn: () => articlesApi.getRevisions(Number(id)),
-    enabled: isHistoryOpen && !!id, // Грузим только если окно открыто
+    enabled: isHistoryOpen && !!id, 
   })
 
-  // МУТАЦИЯ ДЛЯ ВОССТАНОВЛЕНИЯ ВЕРСИИ
   const restoreMutation = useMutation({
-    // @ts-ignore
     mutationFn: (revisionId: number) => articlesApi.restoreRevision(Number(id), revisionId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['article', id] }) // Обновляем статью на экране
+      qc.invalidateQueries({ queryKey: ['article', id] }) 
       setIsHistoryOpen(false)
       alert('Версия успешно восстановлена!')
     },
@@ -136,6 +132,8 @@ export default function ArticleViewPage() {
     },
   })
 
+  const tocItems = useTableOfContents(article?.content)
+
   useEffect(() => {
     if (article && editor) {
       editor.commands.setContent(article.content as any)
@@ -156,15 +154,22 @@ export default function ArticleViewPage() {
 
   return (
     <div className="min-h-screen font-sans transition-colors duration-200">
-      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 sticky top-0 z-10 transition-colors">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 sticky top-0 z-40 transition-colors">
+        {/* Увеличили max-w-5xl до max-w-[1600px] для соответствия главной странице */}
+        <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <button 
             onClick={handleBack} 
-            className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 text-sm transition-colors"
+            className="shrink-0 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 text-sm font-medium transition-colors"
           >
             ← Назад
           </button>
-          <div className="flex items-center gap-3">
+
+          {/* Добавили центрированную поисковую строку */}
+          <div className="w-full max-w-xl mx-auto px-4 hidden md:block">
+            <SearchBar />
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
             {canEdit && (
               <>
                 <button
@@ -194,7 +199,8 @@ export default function ArticleViewPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 flex gap-6">
+      {/* Увеличили max-w-5xl до max-w-[1600px] */}
+      <main className="max-w-[1600px] mx-auto px-6 py-8 flex gap-6">
         <div className="flex-1 min-w-0 space-y-8">
           
           <div>
@@ -238,7 +244,6 @@ export default function ArticleViewPage() {
               </div>
             )}
 
-            {/* КНОПКА СООБЩИТЬ ОБ ОШИБКЕ */}
             <div className="mb-6">
               <button
                 onClick={() => setIsFeedbackOpen(true)}
@@ -260,16 +265,19 @@ export default function ArticleViewPage() {
 
         </div>
 
-        <div className="w-72 shrink-0 hidden lg:block space-y-6">
+        {/* Сузили правую колонку до w-64 для баланса */}
+        <div className="w-64 shrink-0 hidden lg:block space-y-6">
           <FavoritesPanel 
             isFav={isFav} 
             onToggle={() => favMutation.mutate()} 
             isPending={favMutation.isPending} 
           />
+          
+          <TableOfContents items={tocItems} />
+
           <RecentlyViewedPanel />
         </div>
 
-        {/* МОДАЛЬНОЕ ОКНО ДЛЯ ОБРАТНОЙ СВЯЗИ */}
         {isFeedbackOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -283,7 +291,7 @@ export default function ArticleViewPage() {
 
                 {isFeedbackSuccess ? (
                   <div className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl text-center font-medium border border-emerald-100 dark:border-emerald-800">
-                    🎉 Спасибо! Ваше сообщение отправлено модераторам.
+                    Спасибо! Ваше сообщение отправлено модераторам.
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -315,7 +323,6 @@ export default function ArticleViewPage() {
           </div>
         )}
 
-        {/* МОДАЛЬНОЕ ОКНО ИСТОРИИ ВЕРСИЙ */}
         {isHistoryOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[80vh]">
